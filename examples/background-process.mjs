@@ -14,12 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-let serve = $`npx serve`
+const serve = $`npx serve`
 
-for await (let chunk of serve.stdout) {
+for await (const chunk of serve.stdout) {
   if (chunk.includes('Accepting connections')) break
 }
 
-await $`curl http://localhost:5000`
+await $`curl http://localhost:3000`
 
 serve.kill('SIGINT')

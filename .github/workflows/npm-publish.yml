@@ -1,21 +1,55 @@
 name: Publish
 
 on:
+  workflow_dispatch:
   release:
     types: [created]
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
         with:
-          node-version: 14
-      - run: npm i
-      - run: npm run build
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
       - run: npm test
+        env:
+          FORCE_COLOR: 3
+      - run: node scripts/clean-package-json.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.run_id }}
+          path: |
+            build
+            package.json
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      statuses: write
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-${{ github.run_id }}
       - run: echo "//wombat-dressing-room.appspot.com/:_authToken=$AUTH_TOKEN" >> .npmrc
         env:
-          AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}      
-      - run: npm publish
+          AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
+      - run: npm publish --provenance --access=public

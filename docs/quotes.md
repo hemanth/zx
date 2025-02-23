@@ -1,43 +1,40 @@
 # Quotes
 
-When passing arguments to `${...}` there is no need to add quotes. **Quotes will 
-be added automatically if needed.**
+Bash supports various ways to quote arguments: single quotes, double quotes, and a bash-specific method using C-style
+quotes `$'...'`. Zx prefers the latter approach.
 
 ```js
-let name = 'foo & bar'
+const name = 'foo & bar'
 await $`mkdir ${name}`
 ```
 
-For quotes **zx** uses special bash syntax (next commands are valid bash):
+Zx automatically escapes and quotes anything within `${...}`, so there's no need for additional quotes.
 
-```bash
-mkdir $'foo & bar'
-$'ls' $'-la'
-```
-
-If you add quotes `"${name}"`, it will produce a wrong command. 
-
-If you need to add something extra, consider putting it inside curly brackets.
+The following examples produce the same, correct result:
 
 ```js
 await $`mkdir ${'path/to-dir/' + name}`
 ```
 
-This will also work properly:
-
 ```js
 await $`mkdir path/to-dir/${name}`
 ```
 
-### Array of arguments
-
-The `zx` can also take an array or arguments in the `${...}`. Items of the array
-will be quoted separately and concatenated via a space. 
-
-Do **not** add a `.join(' ')`.
+Keep in mind, that `PowerShell` or `pwsh` requires a corresponding quote implementation. Define it [via helpers](./setup#bash) or manually:
 
 ```js
-let flags = [
+import { quotePowerShell } from 'zx'
+
+$.quote = quotePowerShell
+```
+
+## Array of arguments
+
+Zx can also accept an array of arguments within `${...}`. Each array item will be quoted separately and then joined by a
+space.
+
+```js
+const flags = [
   '--oneline',
   '--decorate',
   '--color',
@@ -45,33 +42,64 @@ let flags = [
 await $`git log ${flags}`
 ```
 
-If you already have a string with arrays, it's your responsibility
-to correctly parse it and distinguish separate arguments. For example like this:
+## Glob patterns
+
+Because Zx escapes everything inside `${...}`, you can't use glob syntax directly. Instead, Zx provides 
+a [`glob`](api.md#glob) function.
+
+The following example won't work:
 
 ```js
-await $`git log ${'--oneline --decorate --color'.split(' ')}`
-```
-
-### globbing and `~`
-
-As everything passed through `${...}` will be escaped, you can't use `~` or glob
-syntax. 
-
-In order for this to work the zx provides 
-[globby package](../README.md#globby-package).
-
-For instead of this:
-
-```js
-let files = '~/dev/**/*.md' // wrong
+const files = './**/*.md' // [!code error] // Incorrect
 await $`ls ${files}`
 ```
 
-Use `glob` function and `os` package:
+The correct approach:
 
 ```js
-let files = await glob(os.homedir() + '/dev/**/*.md')
+const files = await glob('./**/*.md')
 await $`ls ${files}`
 ```
 
+## Home dir `~`
 
+Zx won't expand the home directory symbol `~` if it's within `${...}`. Use `os.homedir()` for that purpose.
+
+```js
+const dir = `~/Downloads` // [!code error] // Incorrect
+await $`ls ${dir}`
+```
+
+```js
+await $`ls ${os.homedir()}/Downloads` // Correct
+```
+
+```js
+await $`ls ~/Downloads` // Correct, ~ is outside of ${...}
+```
+
+## Assembling commands
+
+If you're trying to dynamically assemble commands in Zx, you might run into limitations. For instance, the following
+approach won't work:
+
+```js
+const cmd = 'rm'
+if (force) cmd += ' -f'
+if (recursive) cmd += ' -r'
+cmd += ' ' + file
+
+await $`${cmd}` // [!code error] // Incorrect
+```
+
+Zx will escape the entire string, making the command invalid. Instead, assemble an array of arguments and pass it to Zx
+like this:
+
+```js
+const args = []
+if (force) args.push('-f')
+if (recursive) args.push('-r')
+args.push(file)
+
+await $`rm ${args}` // [!code hl]
+```

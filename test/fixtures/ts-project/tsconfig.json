@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "outDir": "./build",
+    "target": "es2021",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowSyntheticDefaultImports": true,
+    "strict": true
+  },
+  "include": ["*.ts"]
+}

@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "typescript": "^5.0.0",
+    "zx": "file:../../.."
+  }
+}
